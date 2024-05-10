@@ -25,6 +25,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     const HotelCollection = client.db('HotelHiveDB').collection('rooms');
+    const BookingCollection = client.db('HotelHiveDB').collection('booking');
     app.get('/rooms', async (req, res) => {
       const cursor = HotelCollection.find();
       const result = await cursor.toArray();
@@ -32,9 +33,23 @@ async function run() {
     });
     app.get('/rooms/:id', async (req, res) => {
       const id = req.params.id;
-      console.log(id);
       const query = { _id: new ObjectId(id) };
       const result = await HotelCollection.findOne(query);
+      res.send(result);
+    });
+
+
+    //booking related
+
+    app.get('/booking', async (req, res) => {
+      const result = await BookingCollection.find().toArray();
+      res.send(result);
+    })
+
+
+    app.post('/booking', async (req, res) => {
+      const bookingInfo = req.body;
+      const result = await BookingCollection.insertOne(bookingInfo);
       res.send(result);
     });
 
