@@ -38,14 +38,38 @@ async function run() {
       res.send(result);
     });
 
+    app.put('/rooms/update/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const status = req.body;
+      const updateAvailable = {
+        $set: {
+          availability: status.availability,
+        },
+      };
+      const result = await HotelCollection.updateOne(
+        filter,
+        updateAvailable,
+        options
+      );
+      res.send(result);
+    });
 
     //booking related
 
     app.get('/booking', async (req, res) => {
       const result = await BookingCollection.find().toArray();
       res.send(result);
-    })
+    });
 
+    app.get('/my-booking/:email', async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const cursor = BookingCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
 
     app.post('/booking', async (req, res) => {
       const bookingInfo = req.body;
@@ -65,5 +89,5 @@ async function run() {
 run().catch(console.dir);
 
 app.listen(port, () => {
-  console.log(`Coffee server listening on port ${port}`);
+  console.log(`Hotel Hive server listening on port ${port}`);
 });
