@@ -42,10 +42,10 @@ async function run() {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const options = { upsert: true };
-      const status = req.body;
+      const {status} = req.body;
       const updateAvailable = {
         $set: {
-          availability: status.availability,
+          availability: status,
         },
       };
       const result = await HotelCollection.updateOne(
@@ -63,8 +63,8 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/my-booking/:email', async (req, res) => {
-      const email = req.params.email;
+    app.get('/my-booking', async (req, res) => {
+      const email = req.query.email;
       const query = { email: email };
       const cursor = BookingCollection.find(query);
       const result = await cursor.toArray();
@@ -74,6 +74,33 @@ async function run() {
     app.post('/booking', async (req, res) => {
       const bookingInfo = req.body;
       const result = await BookingCollection.insertOne(bookingInfo);
+      res.send(result);
+    });
+
+    app.put('/my-booking/update/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const { date } = req.body;
+      const updateAvailable = {
+        $set: {
+          date: date,
+        },
+      };
+      const result = await BookingCollection.updateOne(
+        filter,
+        updateAvailable,
+        options
+      );
+      res.send(result);
+    });
+
+
+    app.delete('/my-booking/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const query = { _id: new ObjectId(id) };
+      const result = await BookingCollection.deleteOne(query);
       res.send(result);
     });
 
