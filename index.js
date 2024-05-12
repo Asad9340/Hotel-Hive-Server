@@ -94,6 +94,26 @@ async function run() {
       );
       res.send(result);
     });
+    app.put('/rooms/review/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const { review } = req.body;
+      console.log(review);
+      const updateAvailable = {
+        $set: {
+          id,
+          reviews: review,
+        },
+      };
+      const result = await HotelCollection.updateOne(
+        filter,
+        updateAvailable,
+        options
+      );
+      res.send(result);
+    });
 
 
     app.delete('/my-booking/:id', async (req, res) => {
