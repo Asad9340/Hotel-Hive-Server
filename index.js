@@ -26,8 +26,12 @@ async function run() {
   try {
     const HotelCollection = client.db('HotelHiveDB').collection('rooms');
     const BookingCollection = client.db('HotelHiveDB').collection('booking');
+    const ReviewCollection = client.db('HotelHiveDB').collection('rating');
     app.get('/rooms', async (req, res) => {
-      const cursor = HotelCollection.find();
+      const filter = req.query.filter;
+      let query = { price: { $lte: filter } };
+
+      const cursor = HotelCollection.find(query);
       const result = await cursor.toArray();
       res.send(result);
     });
@@ -58,16 +62,33 @@ async function run() {
 
     app.put('/rooms/review/:id', async (req, res) => {
       const id = req.params.id;
-      console.log(id);
       const filter = { _id: new ObjectId(id) };
       const { review } = req.body;
-      console.log(review);
       const updateAvailable = {
         $push: {
           reviews: review,
         },
       };
       const result = await HotelCollection.updateOne(filter, updateAvailable);
+      res.send(result);
+    });
+
+
+    app.get('/review', async (req, res) => {
+      const result = await ReviewCollection.find().sort({timestamp:-1}).toArray();
+      res.send(result);
+    });
+
+    app.get('/review/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { id:id };
+      const result = await ReviewCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.post('/rooms/review/:id', async (req, res) => {
+      const { review } = req.body;
+      const result = await ReviewCollection.insertOne(review);
       res.send(result);
     });
 
