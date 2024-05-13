@@ -28,13 +28,20 @@ async function run() {
     const BookingCollection = client.db('HotelHiveDB').collection('booking');
     const ReviewCollection = client.db('HotelHiveDB').collection('rating');
     app.get('/rooms', async (req, res) => {
-      const filter = req.query.filter;
-      let query = { price: { $lte: filter } };
-
-      const cursor = HotelCollection.find(query);
+      const cursor = HotelCollection.find();
       const result = await cursor.toArray();
       res.send(result);
     });
+
+app.get('/room/:lowValue/:highValue', async (req, res) => {
+  const lowValue = parseInt(req.params.lowValue);
+  const highValue = parseInt(req.params.highValue);
+  const query = { pricePerNight: { $gte: lowValue, $lte: highValue } };
+    const result = await HotelCollection.find(query).toArray();
+    res.send(result);
+});
+
+
     app.get('/rooms/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
