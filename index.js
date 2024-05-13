@@ -1,13 +1,25 @@
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken')
+const cookieParser=require('cookie-parser')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 5000;
 
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      'http://localhost:5173',
+      'https://hotel-hive9340.web.app/',
+      'https://hotel-hive9340.firebaseapp.com/',
+    ],
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
 
 app.get('/', (req, res) => {
   res.send('Hotel Hive is running successfully!');
@@ -22,6 +34,24 @@ const client = new MongoClient(uri, {
   },
 });
 
+const logger = (req, res, next) => {
+  console.log('log info', req, method, req.url);
+  next();
+}
+const verifyToken = (req, res, next) => {
+  const token = req?.cookies?.token;
+  if (!token) {
+    return res.status(401).send({ message: 'Unauthorized access' });
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({message:'Unauthorized access'})
+    }
+    req.user = decoded;
+    next();
+  })
+}
+
 async function run() {
   try {
     const HotelCollection = client.db('HotelHiveDB').collection('rooms');
@@ -33,14 +63,21 @@ async function run() {
       res.send(result);
     });
 
-app.get('/room/:lowValue/:highValue', async (req, res) => {
-  const lowValue = parseInt(req.params.lowValue);
-  const highValue = parseInt(req.params.highValue);
-  const query = { pricePerNight: { $gte: lowValue, $lte: highValue } };
-    const result = await HotelCollection.find(query).toArray();
-    res.send(result);
-});
 
+    app.post('/jwt', async (req, res) => {
+      const user = req.body;
+      console.log('user for token', user);
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+      res.send({token})
+    })
+
+    app.get('/room/:lowValue/:highValue', async (req, res) => {
+      const lowValue = parseInt(req.params.lowValue);
+      const highValue = parseInt(req.params.highValue);
+      const query = { pricePerNight: { $gte: lowValue, $lte: highValue } };
+      const result = await HotelCollection.find(query).toArray();
+      res.send(result);
+    });
 
     app.get('/rooms/:id', async (req, res) => {
       const id = req.params.id;
@@ -80,15 +117,16 @@ app.get('/room/:lowValue/:highValue', async (req, res) => {
       res.send(result);
     });
 
-
     app.get('/review', async (req, res) => {
-      const result = await ReviewCollection.find().sort({timestamp:-1}).toArray();
+      const result = await ReviewCollection.find()
+        .sort({ timestamp: -1 })
+        .toArray();
       res.send(result);
     });
 
     app.get('/review/:id', async (req, res) => {
       const id = req.params.id;
-      const query = { id:id };
+      const query = { id: id };
       const result = await ReviewCollection.find(query).toArray();
       res.send(result);
     });
@@ -107,6 +145,9 @@ app.get('/room/:lowValue/:highValue', async (req, res) => {
     });
 
     app.get('/my-booking', async (req, res) => {
+      if (req.user.email !== req.query.email) {
+        return res.status(403).send({message:'Forbidden access'})
+      }
       const email = req.query.email;
       const query = { email: email };
       const cursor = BookingCollection.find(query);
