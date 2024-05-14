@@ -12,7 +12,7 @@ const corsOptions = {
   origin: [
     'http://localhost:5173',
     'http://localhost:5174',
-    'https://hotel-hive9340.web.app/',
+    'https://hotel-hive9340.web.app',
   ],
   credentials: true,
   // optionSuccessStatus: 200,
@@ -23,13 +23,10 @@ app.use(cookieParser());
 
 const verifyToken = (req, res, next) => {
   const token = req.cookies?.token;
-  if (!token) {
-    return res.status(401).send({ message: 'unauthorized access' });
-  }
   if (token) {
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
       if (err) {
-        console.log(err)
+        console.log(err);
         return res.status(401).send({ message: 'unauthorized access' });
       }
       console.log(jwt.decoded);
@@ -136,7 +133,7 @@ async function run() {
 
     app.get('/review', async (req, res) => {
       const result = await ReviewCollection.find()
-        .sort({ timestamp: -1 })
+        .sort({ timestamp: 1 })
         .toArray();
       res.send(result);
     });
@@ -161,12 +158,12 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/my-booking', verifyToken, async (req, res) => {
-      const tokenEmail = req?.user?.email;
+    app.get('/my-booking', async (req, res) => {
+      // const tokenEmail = req?.user?.email;
       const email = req.query.email;
-      if (tokenEmail !== email) {
-        return res.status(403).send({ message: 'forbidden access' });
-      }
+      // if (tokenEmail !== email) {
+      //   return res.status(403).send({ message: 'forbidden access' });
+      // }
       console.log(email);
       const query = { email: email };
       const cursor = BookingCollection.find(query);
