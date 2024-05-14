@@ -1,25 +1,43 @@
 const express = require('express');
 const cors = require('cors');
-const jwt = require('jsonwebtoken')
-const cookieParser=require('cookie-parser')
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 5000;
 
-app.use(
-  cors({
-    origin: [
-      'http://localhost:5173',
-      'https://hotel-hive9340.web.app/',
-      'https://hotel-hive9340.firebaseapp.com/',
-    ],
-    credentials: true,
-  })
-);
+const corsOptions = {
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'https://hotel-hive9340.web.app/',
+  ],
+  credentials: true,
+  // optionSuccessStatus: 200,
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
+
+const verifyToken = (req, res, next) => {
+  const token = req.cookies?.token;
+  if (!token) {
+    return res.status(401).send({ message: 'unauthorized access' });
+  }
+  if (token) {
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+      if (err) {
+        console.log(err)
+        return res.status(401).send({ message: 'unauthorized access' });
+      }
+      console.log(jwt.decoded);
+      req.user = decoded;
+      next();
+    });
+  }
+};
 
 app.get('/', (req, res) => {
   res.send('Hotel Hive is running successfully!');
@@ -34,24 +52,6 @@ const client = new MongoClient(uri, {
   },
 });
 
-const logger = (req, res, next) => {
-  console.log('log info', req, method, req.url);
-  next();
-}
-const verifyToken = (req, res, next) => {
-  const token = req?.cookies?.token;
-  if (!token) {
-    return res.status(401).send({ message: 'Unauthorized access' });
-  }
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-    if (err) {
-      return res.status(401).send({message:'Unauthorized access'})
-    }
-    req.user = decoded;
-    next();
-  })
-}
-
 async function run() {
   try {
     const HotelCollection = client.db('HotelHiveDB').collection('rooms');
@@ -63,13 +63,30 @@ async function run() {
       res.send(result);
     });
 
-
     app.post('/jwt', async (req, res) => {
       const user = req.body;
-      console.log('user for token', user);
-      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
-      res.send({token})
-    })
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: '1d',
+      });
+      res
+        .cookie('token', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+        })
+        .send({ success: true });
+    });
+
+    app.get('/logout', (req, res) => {
+      res
+        .clearCookie('token', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+          maxAge: 0,
+        })
+        .send({ success: true });
+    });
 
     app.get('/room/:lowValue/:highValue', async (req, res) => {
       const lowValue = parseInt(req.params.lowValue);
@@ -144,11 +161,13 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/my-booking', async (req, res) => {
-      if (req.user.email !== req.query.email) {
-        return res.status(403).send({message:'Forbidden access'})
-      }
+    app.get('/my-booking', verifyToken, async (req, res) => {
+      const tokenEmail = req?.user?.email;
       const email = req.query.email;
+      if (tokenEmail !== email) {
+        return res.status(403).send({ message: 'forbidden access' });
+      }
+      console.log(email);
       const query = { email: email };
       const cursor = BookingCollection.find(query);
       const result = await cursor.toArray();
