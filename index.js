@@ -23,6 +23,9 @@ app.use(cookieParser());
 
 const verifyToken = (req, res, next) => {
   const token = req.cookies?.token;
+  if (!token) {
+    return res.status(401).send({ message: 'unauthorized api access' });
+  }
   if (token) {
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
       if (err) {
@@ -158,12 +161,12 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/my-booking', async (req, res) => {
-      // const tokenEmail = req?.user?.email;
+    app.get('/my-booking',verifyToken, async (req, res) => {
       const email = req.query.email;
-      // if (tokenEmail !== email) {
-      //   return res.status(403).send({ message: 'forbidden access' });
-      // }
+      const tokenEmail = req?.user?.email;
+      if (tokenEmail !== email) {
+        return res.status(403).send({ message: 'forbidden access' });
+      }
       console.log(email);
       const query = { email: email };
       const cursor = BookingCollection.find(query);
