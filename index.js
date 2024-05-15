@@ -96,7 +96,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/rooms/:id', async (req, res) => {
+    app.get('/rooms/:id',verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await HotelCollection.findOne(query);
@@ -136,7 +136,7 @@ async function run() {
 
     app.get('/review', async (req, res) => {
       const result = await ReviewCollection.find()
-        .sort({ timestamp: 1 })
+        .sort({ timestamp: -1 })
         .toArray();
       res.send(result);
     });
